@@ -4,13 +4,12 @@ import { connect } from 'react-redux';
 import { ListView, Text, Image, View } from 'react-native';
 import { fetchRuns } from '../reducers/RunState';
 import { Card, CardSection } from './common';
-// import { convertSecondsToPaceString } from './Utilities/Utilities';
+import { convertSecondsPerMileToPaceString } from '../utilities';
 
 class RunList extends Component {
 
   componentWillMount() {
     this.props.fetchRuns();
-
     this.createDataSource(this.props);
   }
 
@@ -43,9 +42,9 @@ class RunList extends Component {
           <Text>DISTANCE: {run.distance} mi</Text>
         </CardSection>
 
-        {/* <CardSection>
-          <Text>PACE: {convertSecondsToPaceString(run.pace)} /mi</Text>
-        </CardSection> */}
+        <CardSection>
+          <Text>PACE: {convertSecondsPerMileToPaceString(run.pace)} /mi</Text>
+        </CardSection>
     
       </Card>
     );
