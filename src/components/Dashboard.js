@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
 import { Text, View } from 'react-native';
-import { Card, CardSection } from './common';
+import { Card, CardSection, Button } from './common';
 
 import BackgroundTimer from 'react-native-background-timer';
 import BackgroundGeolocation from "react-native-background-geolocation";
@@ -15,7 +15,6 @@ import {
   calculateSecondsPerMile,
   convertSecondsPerMileToPaceString,
 } from '../utilities';
-import { convertSecondsToPaceString } from '../../../muscleMech/src/components/Utilities/Utilities';
 
 // TODO:
   // configure background timer and background geolocation in xCode
@@ -27,16 +26,20 @@ class Dashboard extends Component {
     super(props);
     mixins: [TimerMixin],
     this.state = {
+      location: { coords: {x: 'cool', y: 'fool'}},
       runInProgress: false,
       checkInProgress: false,
       totalSeconds: 0,
       totalMiles: 0,
-      lastRecordedCoordinates: null,
+      lastRecordedCoordinates: {
+        pace: null,
+      },
       previousCoordinates: [],
       lastCheckStats: null,
     }
 
     this.toggleTimer = this.toggleTimer.bind(this);
+    this.beginCheck = this.beginCheck.bind(this);
     this.onLocation = this.onLocation.bind(this);
     this.onError = this.onError.bind(this);
     this.onMotionChange = this.onMotionChange.bind(this);
@@ -49,12 +52,12 @@ class Dashboard extends Component {
     // https://github.com/ocetnik/react-native-background-timer
     let toggleVal = !this.state.runInProgress;
     if (toggleVal) {
-      BackgroundTimer.runBackgroundTimer(
+      const timer = BackgroundTimer.setInterval(
         () => this.tick(),
-        10
+        1000
       );
     } else {
-      BackgroundTimer.stopBackgroundTimer();
+      BackgroundTimer.clearInterval(timer);
     }
     this.setState({ runInProgress: toggleVal })
   }
@@ -68,30 +71,36 @@ class Dashboard extends Component {
   beginCheck(differential) {
     // get average pace and coordinates (at time button was pressed)
 
-    const startingPosition = Geolocation.getCurrentPosition();
+    const startingPosition = navigator.geolocation.getCurrentPosition();
 
-    const startCheckData = {
-      x: startingPosition.coords.x,
-      y: startingPosition.coords.y,
-      pace: (this.state.totalSeconds / this.state.totalMiles).toFixed(3),
-    };
+
+    // TODO: This isn't working - check with location permissions enabled
+    this.setState({
+      location: startingPosition,
+    })
+
+    // const startCheckData = {
+    //   x: startingPosition.coords.latitude,
+    //   y: startingPosition.coords.longitude,
+    //   pace: (this.state.totalSeconds / this.state.totalMiles).toFixed(3),
+    // };
 
     // renders a big countdown overlay and sets countdown to 3
     // at end of countdown, renders 'GO!'
 
     // sets countdown to 10
-    this.setTimeout(() => this.completeCheck(differential, startCheckData), 10000);
+    setTimeout(() => this.completeCheck(differential, startCheckData), 10000);
   }
 
   completeCheck(differential, startCheckData) {
 
-    const endingPosition = Geolocation.getCurrentPosition();
+    const endingPosition = navigator.geolocation.getCurrentPosition();
 
     const milesTraveledDuringCheck = calculateMilesTraveled(
       startCheckData.x,
       startCheckData.y,
-      endingPosition.coords.x,
-      endingPosition.coords.y,
+      endingPosition.coords.latitude,
+      endingPosition.coords.longitude,
     );
 
     const paceDuringCheck = (milesTraveledDuringCheck / 10).toFixed(3);
@@ -181,38 +190,32 @@ class Dashboard extends Component {
   }
 
   onLocation(location) {
-
     const secondsSinceLastCheck = this.state.lastRecordedCoordinates ? 
       this.state.totalSeconds - this.state.lastRecordedCoordinates.seconds :
       this.state.totalSeconds;
 
+    const milesTraveledSinceLastCheck = calculateMilesTraveled(
+      this.state.lastRecordedCoordinates.x,
+      this.state.lastRecordedCoordinates.y,
+      location.coords.latitude,
+      location.coords.longitude,
+    );
+
     const currentSecondsPerMile = calculateSecondsPerMile(milesTraveledSinceLastCheck, secondsSinceLastCheck);
 
+    const newCoordinates = {
+      x: location.coords.latitude,
+      y: location.coords.longitude,
+      seconds: this.state.totalSeconds,
+      pace: currentSecondsPerMile,
+    };
+
     if (!this.state.lastRecordedCoordinates) {
-      const lastRecordedCoordinates = {
-        x: location.coords.latitude,
-        y: location.coords.longitude,
-        seconds: this.state.totalSeconds,
-        pace:  currrentSecondsPerMile,
-      };
-      this.setState({ lastRecordedCoordinates });
+      this.setState({ lastRecordedCoordinates: newCoordinates });
     }
 
     else if (this.state.lastRecordedCoordinates &&
       this.state.runInProgress) {
-      const newCoordinates = {
-        x: location.coords.latitude,
-        y: location.coords.longitude,
-        seconds: this.state.totalSeconds,
-        pace: currentSecondsPerMile,
-      };
-
-      const milesTraveledSinceLastCheck = calculateMilesTraveled(
-        this.state.lastRecordedCoordinates.x,
-        this.state.lastRecordedCoordinates.y,
-        newCoordinates.x,
-        newCoordinates.y,
-      );
 
       this.setState({
         lastRecordedCoordinates: newCoordinates,
@@ -257,14 +260,17 @@ class Dashboard extends Component {
           <CardSection style={styles.cardHeader}>
             <Text style={styles.headerText}>RUN STATS</Text>
           </CardSection>
-          <CardSection style={styles.cardHeader}>
-            <Text>Current Pace: {convertSecondsPerMileToPaceString(
+          <CardSection>
+            <Text>
+              {/* Current Pace: {convertSecondsPerMileToPaceString(
               this.state.lastRecordedCoordinates.pace
-              ) + ' min/mi'}</Text>
-            <Text>Average Pace: {convertSecondsPerMileToPaceString(
-              Math.floor(this.state.totalSeconds / this.state.totalMiles)
-              ) + ' min/mi'}</Text>
-            <Text>Total Distance: {this.state.totalMiles}</Text>
+              ) + ' min/mi'} \n
+              Average Pace: {convertSecondsPerMileToPaceString(
+                Math.floor(this.state.totalSeconds / this.state.totalMiles)
+                ) + ' min/mi'} \n
+              Total Distance: {this.state.totalMiles} */}
+              BLOOP: {JSON.stringify(this.state.location)}
+            </Text>
           </CardSection>
           <CardSection>
             <Button onPress={this.toggleTimer}>
@@ -275,27 +281,27 @@ class Dashboard extends Component {
         {this.renderLastCheckStats()}
         <Card>
           <CardSection>
-            <Button onPress={() => this.triggerCheck(0)}>
+            <Button onPress={() => this.beginCheck(0)}>
               +0 CHECK
   					</Button>
           </CardSection>
           <CardSection>
-            <Button onPress={() => this.triggerCheck(1)}>
+            <Button onPress={() => this.beginCheck(1)}>
               +1 CHECK
   					</Button>
           </CardSection>
           <CardSection>
-            <Button onPress={() => this.triggerCheck(2)}>
+            <Button onPress={() => this.beginCheck(2)}>
               +2 CHECK
   					</Button>
           </CardSection>
           <CardSection>
-            <Button onPress={() => this.triggerCheck(-1)}>
+            <Button onPress={() => this.beginCheck(-1)}>
               -1 CHECK
   					</Button>
           </CardSection>
           <CardSection>
-            <Button onPress={() => this.triggerCheck(-2)}>
+            <Button onPress={() => this.beginCheck(-2)}>
               -2 CHECK
   					</Button>
           </CardSection>
