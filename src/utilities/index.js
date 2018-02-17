@@ -25,7 +25,7 @@ export const calculateMilesTraveled = (x1, y1, x2, y2) => {
   dist = Math.acos(dist);
   dist = dist * 180 / Math.PI;
   dist = dist * 60 * 1.1515;
-  return dist;
+  return dist.toFixed(3);
 }
 
 export const calculateSecondsPerMile = (miles, seconds) => {
