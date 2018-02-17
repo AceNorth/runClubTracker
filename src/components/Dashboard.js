@@ -35,6 +35,7 @@ class Dashboard extends Component {
 
     this.toggleTimer = this.toggleTimer.bind(this);
     this.beginCheck = this.beginCheck.bind(this);
+    this.getRecentPace = this.getRecentPace.bind(this);
     this.onLocation = this.onLocation.bind(this);
     this.onError = this.onError.bind(this);
     this.onMotionChange = this.onMotionChange.bind(this);
@@ -69,7 +70,7 @@ class Dashboard extends Component {
     const startCheckData = {
       x: this.state.lastRecordedCoordinates.x,
       y: this.state.lastRecordedCoordinates.y,
-      pace: this.state.lastRecordedCoordinates.pace,
+      pace: this.getRecentPace(), // an average of the user's pace over the last 10 records
     };
 
     this.setState({
@@ -92,7 +93,7 @@ class Dashboard extends Component {
       const paceDuringCheck = (15 / milesTraveledDuringCheck); // 15 seconds / miles
 
       // pace during the check was what % of average pace?
-      const checkPacePercent = Math.floor((paceDuringCheck / startCheckData.pace) * 100);
+      const checkPacePercent = Math.floor((startCheckData.pace / paceDuringCheck) * 100);
 
       this.setState({
         location: 'CHECK DONE',
@@ -128,8 +129,8 @@ class Dashboard extends Component {
     // 2.  #configure the plugin (just once for life-time of app)
     BackgroundGeolocation.configure({
       // Geolocation Config
-      desiredAccuracy: 0,
-      stationaryRadius: 25,
+      desiredAccuracy: 0, // equal to BackgroundGeolocation.HIGH_ACCURACY
+      stationaryRadius: 20,
       distanceFilter: 10,
       // Activity Recognition
       stopTimeout: 1,
@@ -247,7 +248,7 @@ class Dashboard extends Component {
           <Text>Check Pace: {checkPace} min/mi</Text>
         </CardSection>
         <CardSection>
-          <Text>% Pace Increase: {checkPacePercent}%</Text>
+          <Text>% of Base Pace: {checkPacePercent}%</Text>
         </CardSection>
         <CardSection>
           <Text>Differential: {differential}</Text>
@@ -260,6 +261,13 @@ class Dashboard extends Component {
     } else {
       return null;
     }
+  }
+
+  getRecentPace() {
+    // this makes sure our pace data is only based on the last 20 times we've gotten the user's location,
+    // not the whole run
+    const last20 = this.state.previousCoordinates.slice(this.state.previousCoordinates.length - 21);
+    return last20.reduce((reducer, entry) => reducer + entry.pace, 0) / last20.length;
   }
 
   render() {
@@ -278,7 +286,14 @@ class Dashboard extends Component {
           </CardSection>
           <CardSection>
             <Text>
-              Average Pace: {convertSecondsPerMileToPaceString(
+              Recent Average Pace: {convertSecondsPerMileToPaceString(
+              this.getRecentPace()
+              ) + ' min/mi'}
+            </Text>
+          </CardSection>
+          <CardSection>
+            <Text>
+              Overall Average Pace: {convertSecondsPerMileToPaceString(
                 Math.floor(this.state.totalSeconds / this.state.totalMiles)
                 ) + ' min/mi'}
             </Text>
@@ -309,7 +324,8 @@ class Dashboard extends Component {
           <CardSection>
             <Button
               onPress={() => this.beginCheck(0)}
-              // disabled={this.state.previousCoordinates.length === 0}
+              disabled={this.state.previousCoordinates.length < 20}
+              // don't allow checks until you've established location/pace data
               >
               +0 CHECK
   					</Button>
@@ -317,7 +333,8 @@ class Dashboard extends Component {
           <CardSection>
             <Button
               onPress={() => this.beginCheck(1)}
-              // disabled={this.state.previousCoordinates.length === 0}
+              disabled={this.state.previousCoordinates.length < 20}
+              // don't allow checks until you've established location/pace data
               >
               +1 CHECK
   					</Button>
@@ -325,7 +342,8 @@ class Dashboard extends Component {
           <CardSection>
             <Button
               onPress={() => this.beginCheck(2)}
-              // disabled={this.state.previousCoordinates.length === 0}
+              disabled={this.state.previousCoordinates.length < 20}
+              // don't allow checks until you've established location/pace data
               >
               +2 CHECK
   					</Button>
@@ -333,7 +351,8 @@ class Dashboard extends Component {
           <CardSection>
             <Button
               onPress={() => this.beginCheck(-1)}
-              // disabled={this.state.previousCoordinates.length === 0}
+              disabled={this.state.previousCoordinates.length < 20}
+              // don't allow checks until you've established location/pace data
               >
               -1 CHECK
   					</Button>
@@ -341,7 +360,8 @@ class Dashboard extends Component {
           <CardSection>
             <Button
               onPress={() => this.beginCheck(-2)}
-              // disabled={this.state.previousCoordinates.length === 0}
+              disabled={this.state.previousCoordinates.length < 20}
+              // don't allow checks until you've established location/pace data
               >
               -2 CHECK
   					</Button>
