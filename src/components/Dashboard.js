@@ -25,6 +25,9 @@ class Dashboard extends Component {
       runInProgress: false,
       checkInProgress: false,
       totalSeconds: 0,
+      totalMinutes: 0,
+      currentCheckValue: 0,
+      totalPoints: 0,
       totalMiles: 0,
       lastRecordedCoordinates: {
         pace: null,
@@ -34,8 +37,6 @@ class Dashboard extends Component {
     }
 
     this.toggleTimer = this.toggleTimer.bind(this);
-    this.beginCheck = this.beginCheck.bind(this);
-    this.getRecentPace = this.getRecentPace.bind(this);
     this.onLocation = this.onLocation.bind(this);
     this.onError = this.onError.bind(this);
     this.onMotionChange = this.onMotionChange.bind(this);
@@ -59,54 +60,38 @@ class Dashboard extends Component {
   }
 
   tick() {
+    let newTotalSeconds = this.state.totalSeconds + 1;
+    let newTotalMinutes = this.state.totalMinutes;
+    if (newTotalSeconds === 60) {
+      newTotalSeconds = 0;
+      newTotalMinutes++;
+    }
     this.setState({
-      totalSeconds: this.state.totalSeconds + 1,
+      totalSeconds: newTotalSeconds,
+      totalMinutes: newTotalMinutes
     });
   }
 
-  beginCheck(differential) {
-    // get average pace and coordinates (at time button was pressed)
-
-    const startCheckData = {
-      x: this.state.lastRecordedCoordinates.x,
-      y: this.state.lastRecordedCoordinates.y,
-      pace: this.getRecentPace(), // an average of the user's pace over the last 10 records
-    };
-
+  updatePoints(points) {
     this.setState({
-      location: 'STARTING CHECK!'
+      totalPoints: this.state.totalPoints + points,
     })
-
-    setTimeout(() => this.completeCheck(differential, startCheckData), 15000);
-
   }
 
-  completeCheck(differential, startCheckData) {
+  generateNumber(max) {
+    this.setState({
+      currentCheckValue: Math.floor(Math.random() * Math.floor(max)) + 1,
+    })
+  }
 
-      const milesTraveledDuringCheck = calculateMilesTraveled(
-        startCheckData.x,
-        startCheckData.y,
-        this.state.lastRecordedCoordinates.x,
-        this.state.lastRecordedCoordinates.y,
-      );
-
-      const paceDuringCheck = (15 / milesTraveledDuringCheck); // 15 seconds / miles
-
-      // pace during the check was what % of average pace?
-      const checkPacePercent = Math.floor((startCheckData.pace / paceDuringCheck) * 100);
-
-      this.setState({
-        location: 'CHECK DONE',
-        lastCheckStats: {
-          averagePace: convertSecondsPerMileToPaceString(startCheckData.pace),
-          checkPace: convertSecondsPerMileToPaceString(paceDuringCheck),
-          milesTraveledDuringCheck,
-          paceDuringCheck,
-          checkPacePercent,
-          differential,
-          pointsEarned: checkPacePercent + (5 * differential),
-        }
-      });
+  determineCheckBackground() {
+    if (this.state.currentCheckValue > 74) {
+      return 'green';
+    } else if (this.state.currentCheckValue > 49) {
+      return 'yellow';
+    } else {
+      return 'red';
+    }
   }
 
   componentWillMount() {
@@ -219,75 +204,98 @@ class Dashboard extends Component {
     };
   }
 
-  renderLastCheckStats() {
-    if (this.state.lastCheckStats) {
-      const {
-        averagePace,
-        checkPace,
-        paceDuringCheck,
-        checkPacePercent,
-        milesTraveledDuringCheck,
-        differential,
-        pointsEarned,
-      } = this.state.lastCheckStats;
-
-      return (<Card>
-        <CardSection style={styles.cardHeader}>
-          <Text style={styles.headerText}>RUN STATS</Text>
-        </CardSection>
-        <CardSection>
-          <Text>Average Pace: {averagePace} min/mi</Text>
-        </CardSection>
-        <CardSection>
-          <Text>Miles during check: {milesTraveledDuringCheck}</Text>
-        </CardSection>
-        <CardSection>
-          <Text>Pace during check: {paceDuringCheck}</Text>
-        </CardSection>
-        <CardSection>
-          <Text>Check Pace: {checkPace} min/mi</Text>
-        </CardSection>
-        <CardSection>
-          <Text>% of Base Pace: {checkPacePercent}%</Text>
-        </CardSection>
-        <CardSection>
-          <Text>Differential: {differential}</Text>
-        </CardSection>
-        <CardSection>
-          <Text>Points Earned: {pointsEarned}</Text>
-        </CardSection>
-      </Card>
-      )
-    } else {
-      return null;
-    }
-  }
-
-  getRecentPace() {
-    // this makes sure our pace data is only based on the last 20 times we've gotten the user's location,
-    // not the whole run
-    const last20 = this.state.previousCoordinates.slice(this.state.previousCoordinates.length - 21);
-    return last20.reduce((reducer, entry) => reducer + entry.pace, 0) / last20.length;
-  }
-
   render() {
     return (
-      <ScrollView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.body}>
+        <Card style={{ flex: 1 }}>
+          <CardSection style={{
+              backgroundColor: this.determineCheckBackground()
+            }}>
+            <Text style={{
+              fontSize: 30,
+              fontWeight: 'bold',
+            }}>
+            CURRENT VALUE: {this.state.currentCheckValue}
+            </Text>
+          </CardSection>
+          <CardSection>
+            <Button
+              onPress={() => this.generateNumber(100)}
+              disabled={false}
+              >
+              GENERATE NUMBER
+            </Button>
+          </CardSection>
+        </Card>
+        <Card style={{ flex: 1 }}>
+          <CardSection>
+            <Text style={{
+                fontSize: 30,
+                fontWeight: 'bold',
+              }}>
+              Points: {this.state.totalPoints}
+            </Text>
+          </CardSection>
+          <CardSection>
+            <Button
+              onPress={() => this.updatePoints(1)}
+              disabled={false}
+              >
+              +1 pt
+            </Button>
+            <Button
+              onPress={() => this.updatePoints(3)}
+              disabled={false}
+              >
+              +3 pts
+            </Button>
+            <Button
+              onPress={() => this.updatePoints(5)}
+              disabled={false}
+              >
+              +5 pts
+            </Button>
+          </CardSection>
+          <CardSection style={{padding: 15}}>
+            <Button
+              onPress={() => this.updatePoints(-1)}
+              disabled={false}
+              >
+              -1 pt
+            </Button>
+            <Button
+              onPress={() => this.updatePoints(-3)}
+              disabled={false}
+              >
+              -3 pts
+            </Button>
+            <Button
+              onPress={() => this.updatePoints(-5)}
+              disabled={false}
+              >
+              -5 pts
+            </Button>
+          </CardSection>
+        </Card>
         <Card>
-          <CardSection style={styles.cardHeader}>
-            <Text style={styles.headerText}>RUN STATS</Text>
+          <CardSection>
+            <Text
+              style={{
+              fontSize: 30,
+              fontWeight: 'bold',
+            }}>
+              Time: {("0" + this.state.totalMinutes).slice(-2)}:{("0" + this.state.totalSeconds).slice(-2)}
+            </Text>
+          </CardSection>
+          <CardSection>
+            <Button onPress={this.toggleTimer}>
+              START/STOP RUN
+            </Button>
           </CardSection>
           <CardSection>
             <Text>
               Current Pace: {convertSecondsPerMileToPaceString(
               this.state.lastRecordedCoordinates.pace
-              ) + ' min/mi'}
-            </Text>
-          </CardSection>
-          <CardSection>
-            <Text>
-              Recent Average Pace: {convertSecondsPerMileToPaceString(
-              this.getRecentPace()
               ) + ' min/mi'}
             </Text>
           </CardSection>
@@ -303,69 +311,6 @@ class Dashboard extends Component {
               Total Distance: {this.state.totalMiles}
             </Text>
           </CardSection>
-          <CardSection>
-            <Text>
-              Time: {this.state.totalSeconds}
-            </Text>
-          </CardSection>
-          <CardSection>
-            <Text>
-              Status: {this.state.location}
-            </Text>
-          </CardSection>
-          <CardSection>
-            <Button onPress={this.toggleTimer}>
-              START/STOP RUN
-  					</Button>
-          </CardSection>
-        </Card>
-        {this.renderLastCheckStats()}
-        <Card>
-          <CardSection>
-            <Button
-              onPress={() => this.beginCheck(0)}
-              disabled={this.state.previousCoordinates.length < 20}
-              // don't allow checks until you've established location/pace data
-              >
-              +0 CHECK
-  					</Button>
-          </CardSection>
-          <CardSection>
-            <Button
-              onPress={() => this.beginCheck(1)}
-              disabled={this.state.previousCoordinates.length < 20}
-              // don't allow checks until you've established location/pace data
-              >
-              +1 CHECK
-  					</Button>
-          </CardSection>
-          <CardSection>
-            <Button
-              onPress={() => this.beginCheck(2)}
-              disabled={this.state.previousCoordinates.length < 20}
-              // don't allow checks until you've established location/pace data
-              >
-              +2 CHECK
-  					</Button>
-          </CardSection>
-          <CardSection>
-            <Button
-              onPress={() => this.beginCheck(-1)}
-              disabled={this.state.previousCoordinates.length < 20}
-              // don't allow checks until you've established location/pace data
-              >
-              -1 CHECK
-  					</Button>
-          </CardSection>
-          <CardSection>
-            <Button
-              onPress={() => this.beginCheck(-2)}
-              disabled={this.state.previousCoordinates.length < 20}
-              // don't allow checks until you've established location/pace data
-              >
-              -2 CHECK
-  					</Button>
-          </CardSection>
         </Card>
       </ScrollView>
     );
@@ -375,8 +320,11 @@ class Dashboard extends Component {
 const styles = {
   container: {
     flex: 1,
-    width: null,
-    height: null,
+  },
+  body: {
+    flex: 1,
+    backgroundColor: '#e191ff',
+    justifyContent: 'space-around'
   },
   cardHeader: {
     justifyContent: 'center',
@@ -385,7 +333,7 @@ const styles = {
   headerText: {
     color: '#fff',
     fontWeight: 'bold'
-  }
+  },
 }
 
 const mapStateToProps = state => {
